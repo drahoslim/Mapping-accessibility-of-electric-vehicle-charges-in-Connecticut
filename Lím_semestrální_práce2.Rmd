@@ -1,0 +1,325 @@
+---
+title: "Elektrické nabíjecí stanice ve státě Connecticut"
+author: "Drahoslav Lím"
+output:
+  html_document:
+    number_sections: yes
+    toc: yes
+---
+```{r setup, include=FALSE} 
+knitr::opts_chunk$set(warning = FALSE, message = FALSE) 
+```
+# Úvod
+S náročnějšími regulacemi v automoiblovém průmyslu i společenským odklonem od fosilních paliv roste zájem o elektroauta. Co se týče praktičnosti, stíhá je několik nevýhod, zejména krátký dojezd, vyšší nákupní ceny nebo také nerozvinutá infrastruktura. Právě s posledním zmíněným se pojí výskyt nabíjecích stanic pro elektroauta, které mapuje mnou vybraná databáze. Chtěl jsem zjistit, jestli nedostatek nabíjecích stanic, který máme v ČR, existuje i v rozvinutějších částech světa. 
+Vybral jsem si ke zkoumání americký stát Connectitut, kde by na první pohled tento problém nemusel být tak velký. Connecticut je totiž 3. nejmenší stát USA, je hustě osídlený a zároveň je velmi hospodářsky rozvinutý.
+
+Pokládám si proto otázku na dostupnost. Zda se nachází ve všech 8 "counties" (okresech), ve všech "municipalities" (obcích).
+Hypotéza 1: V každém okresu a  obci ve státě Connecticut se bude nacházet alespoň jedna elektrická nabíjecí stanice.
+
+Dále se zaměřím na výskyt jednolivých typů nabíječek. 
+Hypotéza 2: Celkově budou pak na stanici průměrně cca 4 nabíječky pro elektroauta. Nejrozšířenější typ nabíječek bude EV DC fast count, tzv. supercharger. Bude mít nejvyšší průměr, medián, největší směrodatnou odchylku i variační rozpětí.
+
+# Teoretická část
+
+Hypotéza1, při ověřování 1. hypotézy jsem použil zobrazení pomocí mapy, k tomu mi pomohl stažený shapefile státu Connecticut s vyobrazenými hranicemi okresů. Dále pak kontingenční tabulku a databázi všech obcí ve státě Connecticut, kterou následně porovnám s hlavní databází.
+
+Hypotéza 2, při ověřování 2. hypotézy jsem využil výpočet absolutních četností, také jsem zpracoval graficky. Poté jsem Dále z nově uspořádaných dat vypočteny statistické ukazatele - aritmetický průměr, medián, směrodatná odchylka a variační rozpětí pro zjištění středních hodnot, měr rozptýlení či rozsahu a zobrazení histogramu pro nastínění typu rozdělení četností. Variační koeficient jsem nepočítal, protože všechny 3 datasety jsou ve stejný jednotkách, v počtech stanic.
+
+## Použité vzorce
+
+### Arimetický průměr
+
+Aritmetický průměr je součet všech hodnot vydělený jejich počtem.
+
+$\frac{1}{n} \sum_{i=i}^{n} x_{i}$
+
+### Medián
+
+Medián dělí řadu vzestupně seřazených výsledků na dvě stejně početné poloviny. Platí, že nejméně 50 % hodnot je menších nebo rovných a nejméně 50 % hodnot je větších nebo rovných mediánu.
+
+Pokud má soubor sudý počet prvků:
+
+$\frac{(\frac{n}{2})^\text{th} \text{ obs.} + (\frac{n+1}{2})^\text{th} \text{ obs.}}{2}$
+
+Pokud má soubor lichý počet prvků:
+
+$\frac{n+1}{2}^\text{th}\text{ obs.}$
+
+### Směrodatná odchylka
+
+Směrodatná odchylka vyjadřuje, jak se hodnoty liší od průměrné hodnoty (střední hodnoty). Jedná se o odmocninu z rozptylu náhodné veličiny.
+
+$s = \sqrt{\frac{1}{N-1} \sum_{i=1}^N (x_i - \overline{x})^2}$
+
+### Variační rozpětí
+
+Variační rozpětí je statistická charakteristika, která vyjadřuje míru variability statistického souboru. Je to rozdíl mezi největší a nejmenší hodnotou kvantitativního znaku.
+
+$R = x_\text{max} - x_\text{min}$
+
+### Histogram
+
+Histogram graficky znázorňuje distribuci dat pomocí sloupcového grafu se sloupci stejné šířky, vyjadřující šířku intervalů, přičemž výška sloupců vyjadřuje četnost sledované veličiny v daném intervalu.
+
+# Praktická část
+
+## Úprava dat
+
+### Načtení databáze
+Data z otevřené databáze americké vlády data.gov mapují nabíjecí stanice pro elektroauta v USA, konkrétně ve státě Connecticut. Sloupce zahrnují adresy, doba provozu, typy nabíječek na stanici a souřadnice. Zjednodušené vysvětlení typů nabíječek: EV level 1 je standardní domácí nabíječka, nabíjení může trvat 12-24 hodin, dále EV level 2 má vyšší napětí, nabíjení zabírá 2-4 hodiny a EV level fast Count, pomocí něhož se dá elektroauto nabít za 20-40 minut a nelze ji mít doma. List má 386 řádků a 9 sloupců.
+```{r}
+library(readxl)
+stanice<-read_excel("Elektrické nabíjecí stanice Connecticut.xlsx")
+View(stanice)
+```
+
+
+```{r, include=FALSE}
+typeof(stanice)
+```
+
+### Úprava datasetu
+První řádek jsou názvy sloupců, tedy jsem je překopíroval do názvu a pak vymazán. Ve sloupcích, kde jsou zaznamenány počty jednotlivých druhů nabíječek na prodejně, je mnohokrát zápis "none", převedl jsem je na nuly.
+```{r}
+names(stanice) <- stanice[1,]
+stanice<- stanice[-1,]
+View(stanice)
+
+stanice$`EV Level1 EVSE Num` <-gsub("NONE","0", stanice$`EV Level1 EVSE Num`)
+stanice$`EV Level2 EVSE Num` <-gsub("NONE","0", stanice$`EV Level2 EVSE Num`)
+stanice$`EV DC Fast Count` <-gsub("NONE","0", stanice$`EV DC Fast Count`)
+View(stanice)
+```
+
+
+```{r, include=FALSE}
+typeof(stanice$`EV Level1 EVSE Num`)
+```
+
+
+```{r}
+stanice$`EV Level1 EVSE Num`<-as.numeric(stanice$`EV Level1 EVSE Num`)
+stanice$`EV Level2 EVSE Num`<-as.numeric(stanice$`EV Level2 EVSE Num`)
+stanice$`EV DC Fast Count`<-as.numeric(stanice$`EV DC Fast Count`)
+```
+
+
+```{r, include=FALSE}
+typeof(stanice$`EV Level1 EVSE Num`)
+```
+### Další úprava datasetu
+
+Vymazán sloupec 8 "EV other Info", naprostá většina stanic je zde bez dalších informací, kdyby zde bylo obsaženo více dat, dalo by se jen těžko hromadně interpretovat.
+Další úprava sloupců, rozdělení sloupce se souřadnicemi pro následné zobrazení mapy, protože funkce vyžaduje zeměpisnou délku a šířku zvlášť.
+Otevírací doba nabíjecích stanic pro elektroauta není uvažována kvůli náročnému zpracování dat, protože nemalý počet stanic mám v tomto sloupci zápis, který říká, že daná stanice je přístupná pouze v otevírací době instituce, kde se nachází, např. autodealera, banky či parkování atd.
+```{r}
+stanice<- stanice[,-8]
+View(stanice)
+
+library(splitstackshape)
+stanice$`New Georeferenced Column` <-gsub("POINT","", stanice$`New Georeferenced Column`)
+stanice$`New Georeferenced Column` <-gsub("\\(","", stanice$`New Georeferenced Column`)
+stanice$`New Georeferenced Column` <-gsub(")","", stanice$`New Georeferenced Column`)
+stanice$`New Georeferenced Column` <-gsub("c","", stanice$`New Georeferenced Column`)
+stanice$`New Georeferenced Column` <-gsub(",","", stanice$`New Georeferenced Column`)
+View(stanice)
+```
+
+
+```{r, include=FALSE}
+as.character(stanice$`New Georeferenced Column`)
+```
+
+
+```{r, include=FALSE}
+stanice<-concat.split(stanice, 8, sep = " ")
+View(stanice)
+
+names(stanice)[names(stanice) == "New Georeferenced Column_1"] <- "longitude"
+names(stanice)[names(stanice) == "New Georeferenced Column_2"] <- "latitude"
+View(stanice)
+```
+
+## Zkoumání hypotézy 1
+
+Hypotéza 1: V každém okresu a  obci ve státě Connecticut se bude nacházet alespoň jedna elektrická nabíjecí stanice.
+
+Pro zobrazení státu hranic státu Connecticut včetně jeho okresů jsem stáhnul shapefile ze databáze vlády USA pro můj stát, tedy webová stránka ct.gov.
+
+### Mapa nabíjecích stanic pro elektroauta ve státě Connecticut
+```{r, include=FALSE}
+library(rgdal)
+library(plotly)
+```
+
+
+```{r}
+mapa_stanic = plot_geo(stanice,
+                       lat = ~latitude,
+                       lon = ~longitude)
+```
+
+
+```{r, include=FALSE}
+mapa_stanic
+```
+
+
+```{r}
+stanice2<-stanice
+coordinates(stanice2) = c("longitude","latitude")
+crs.geo1 = CRS("+proj=longlat")  
+proj4string(stanice2) = crs.geo1 
+
+plot(stanice2, pch = 20, col = "steelblue")
+
+map2 <- readOGR(dsn = "C:\\Users\\lim.d\\Downloads\\Connecticut_County_Index", layer = "CT_County_Index")
+plot(map2)
+points(stanice2, pch = 20, col = "orange")
+```
+
+Na posledním grafu složeném vidíme, že alespoň jedna nabíjecí stanice se nachází v každém z 8 okresů Connecticutu.
+
+### Výpočet z kontingenční tabulky
+```{r, include=FALSE}
+library(tidyr)
+library(dplyr)
+```
+
+
+```{r}
+View(stanice)
+pivot_table<-stanice %>% select(City) %>% count(City)
+nrow(pivot_table)
+```
+Podle počtu řádků kontingenční tabulky vidíme, že alespoň jedna nabíjecí stanice pro elektroauta se nachází v ve 119 obcích.
+
+### Města, kde se nevyskytuje ani jedna stanice
+```{r}
+setwd("C:/Users/lim.d/OneDrive - Vysoká škola ekonomická v Praze/4ST101 - Základy datových analýz")
+library("readxl")
+mesta_us<-read_excel("uscities.xlsx")
+View(mesta_us)
+mesta_ct<-filter(mesta_us,state_id == "CT")
+View(mesta_ct)
+
+filter(mesta_ct, city != city_ascii)
+nrow(mesta_ct) - nrow(pivot_table)
+nrow(pivot_table) / nrow(mesta_ct)
+```
+Stáhl jsem si další databázi, kde jsou všechna města v USA opět z portálu data.gov a vyfiltroval jsem si stát Connecticut, abych získal pouze města ležící na území tohoto státu. Poté sem se pozastavil nad sloupcem city_ascii, který má ale stejné hodnoty jako sloupec city, takže jsem ho dále neanalyzoval. Nakonec jsem od sebe odečetl počet měst, kde se nachází nabíjecí stanice a počet měst celkově. Zjistil jsem, z celkového počtu 184 měst nemá 65 z nich ani jednu elektronabíjecí stanici, tedy asi 65 % měst elektronabíjecí stanici má.
+
+## Zkoumání hypotézy 2
+
+Hypotéza 2: Celkově budou pak na stanici průměrně cca 4 nabíječky pro elektroauta.
+
+Nejrozšířenější typ nabíječek bude EV DC fast count, tzv. supercharger. Bude mít nejvyšší průměr, medián, největší směrodatnou odchylku i variační rozpětí.
+
+### Celkově
+
+```{r}
+četnosti<-as.data.frame(colSums(stanice[, 5:7]))
+colnames(četnosti)<- c("četnost")
+četnosti$typ_nabijecky<- colnames(stanice[,5:7])
+četnosti
+```
+
+
+```{r, include=FALSE}
+library(tidyverse)
+```
+
+
+```{r}
+ggplot(četnosti, aes(x=reorder(typ_nabijecky, četnost),y= četnost, fill = typ_nabijecky))+ theme_minimal()+ geom_bar(stat="identity") + labs(x= "Typ nabíječky") + labs(y= "Četnost") + geom_text(aes(label = četnost), size = 5, vjust = 0.1) + scale_fill_viridis_d() + theme(legend.position = "none")
+
+stanice_ev1<-filter(stanice, stanice[,5]>0)
+View(stanice_ev1)
+nrow_ev1<-nrow(stanice_ev1)
+
+stanice_ev2<-filter(stanice, stanice[,6]>0)
+nrow_ev2<-nrow(stanice_ev2)
+
+stanice_fast<-filter(stanice, stanice[,7]>0)
+nrow_fast<-nrow(stanice_fast)
+
+četnosti2<-as.numeric(c(nrow_ev1, nrow_ev2, nrow_fast))
+```
+
+
+```{r, include=FALSE}
+as.data.frame(četnosti2)
+length(četnosti2)
+as.data.frame(matrix(četnosti2))
+```
+
+
+```{r}
+četnosti2
+```
+Na hypotézu 2 lze pohlížet více způsoby. Pokud uvažuji celkový počet typů nabíječek ve státě, nejčastěji se setkám v typem nabíječky EV level 2, který středně rychlý. Následuje rychlonabíječka-supercharger, a nejméně zastoupený typ nabíječky je Ev level 1, ten nejpomalejší, konkrétně je jich 21, 784 a 230.
+Tyto data může ale zkreslit pár velkých nabíjecích stanic, kde by byla velká míra koncentrace nabíječek. V praxi ale uvažuji počet stanic, kde je alespoň zastoupena alespoň jedna, protože má pro mě nabíječka hodnotu pouze v případě, kdy k ním mám reálný přístup, za předpokladu, že na stanici není žádná fronta. V pořadí opět od nejpomalejší po nejrychlejší typ nabíječky, je takových stanic 9, 341 a 54, tedy podobný výsledek jako u první úvahy.
+
+```{r, include=FALSE}
+library(openxlsx)
+write.xlsx(stanice, "pivot.xlsx")
+```
+
+
+```{r}
+stanice_together<- rowSums(stanice[,5:7])
+mean(stanice_together)
+```
+Když jsem zvažoval počet nabíječek na stanici nezávisle na druhu nabíjení, zjistil jsem, že průměrně najdu na jedné stanici 2,69 nabíječky.
+
+
+```{r, include=FALSE}
+class(stanice[, 5:7])
+```
+
+### Podle typu nabíjení
+
+```{r}
+num_evlevel1<-as.numeric(unlist(stanice[, 5]))
+num_evlevel2<-as.numeric(unlist(stanice[, 6]))
+num_evfast<-as.numeric(unlist(stanice[, 7]))
+
+mean(num_evlevel1)
+median(num_evlevel1)
+sd(num_evlevel1)
+range(num_evlevel1)
+```
+Ev Level1 průměr vyšel 0,06, tedy velmi blízko nule, medián vyšel 0. Ač je variační rozpětí 8, tak většina stanic nenabízí ani jednou tento typ nabíječky a šance, že na takovou narazíme, je velmi malá. Směrodatná odchylka vyšla cca 0.5.
+
+```{r}
+mean(num_evlevel2)
+median(num_evlevel2)
+sd(num_evlevel2)
+range(num_evlevel2)
+```
+Ev Level2 je průměrně dostupný na jedné stanici cca 2x, 2 vyšel také medián. I odsud vidíme, že tyto data nabývají kladně zešikmeného rozdělení, byť se tyto 2 hodnoty téměř rovnají. Směrodatná odchylka vyšla přibližně 1,85, tedy data se typicky liší více než u prvního typu nabíjení, tomu odpovídá také rozpětí, které je 17.
+
+```{r}
+mean(num_evfast)
+median(num_evfast)
+sd(num_evfast)
+range(num_evfast)
+```
+EV DC Fast je průměrně dostupný na jedné stanici 0,6 krát, nicméně medián je 0, tedy minimálně na polovině stanic ho nenajdeme ani jednou. Směrodatná odchylka je 2,13, tedy tyto data jsou typicky nejvíce rozptýlená ze všech tří, ač variační rozpětí je 16, tedy o jedno menší než u druhého typu.
+
+```{r}
+library(tidyverse)
+qplot(num_evlevel1, geom = "histogram", xlab = "Frekvence", ylab = "Nabíječka EV Level1", main = "Histogram EV Level1", bins = 20, xlim = c(0,20), ylim = c(0,20), col = I("darkblue"))
+qplot(num_evlevel2, geom = "histogram", xlab = "Frekvence", ylab = "Nabíječka EV Level2", main = "Histogram EV Level2", bins = 20, xlim = c(0,20), ylim = c(0,200), col = I("darkgreen"))
+qplot(num_evfast, geom = "histogram", xlab = "Frekvence", ylab = "Nabíječka EV Fast", main = "Histogram EV Fast", bins = 30, xlim = c(0,20),ylim = c(0,40), col = I("darkred"))
+```
+
+Všechny tři histogramy se blíží logaritmickému normálnímu rozdělení. Jsou kladně zešikmené.
+
+# Závěr
+
+## Hypotéza 1
+Hypotéza 1 byla vyvrácena. Nabíjecí stanici pro elektroauta najdu v každém okresu ve státě Connecticut, ale nikoli v každém městě, pouze v 65 % procentech z nich. Na okrskové mapě podle okrsků vidíme hlavně 2 hlavní trasy. První cesta lemuje hranici pevniny s oceánem a druhá cesta se odpojuje a postupuje středem státu na sever, je shodou okolností součástí dopravní trasy New York-Boston. V těchto dvou oblastech ja také Connecicut nejhustěji osídlen.  Naopak nejméně obyvatel žije na severozápadě a severvýchodě státu, problém s nedostupností stanic hrozí hlavně zde. Díky celkově malé rozloze a husté osídlenosti oproti ostatním americkým státům není v současnosti problém s nedopstupností elektrostanic velký.
+
+## Hypotéza 2
+Hypotéza 2 byla vyvrácena. Průměrně najdu na jedné nabíjecí stanici při zaorkouhlení na celá čísla 3 elektrická napájecí zařízení, nezávisle na jejich druhu. Nejdostupnější typ nabíječky je ta střední, patrně po zákazníky i provozovatele představuje zajímavý kompromis mezi využitelností a cenou. Naopak zřídka ve státě Connecticut narazíme na nabíječky EV Level 1. Spekuluji, že hlavní důvod bude dlouhotrvající nabíjení, může totiž trvat celý den. Nabíjení chargerem DC Fast sice trvá klidně půl hodiny, za to je dražší i náročnější na infrastrukturu. Výskyt typů nabíječek jsem zkoumal dvěma způsoby, je zajímavé, že pořadí v obou zůstalo stejné, ale zaznamenal jsem rozdíl v koncentraci. Zatímco absolutních počtu nabíječek středního typu je o více než 3x více, v přepočtu na stanice s alespoň jedním druhem dané nabíječky je to 6x více. Vyplývá to z faktu, že existují podniky, kde je k dispozici hromadné nabíjení rychlonabíječkou, nejspíše se provoz pouze jedné nebo dvou superchargerů vyplatí méně, než provozovat větší nabíjecí park.
